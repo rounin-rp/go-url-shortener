@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rounin-rp/go-url-shortener/mongodb"
 	"github.com/rounin-rp/go-url-shortener/shortener"
-	"github.com/rounin-rp/go-url-shortener/store"
 )
 
 type UrlCreationRequest struct {
@@ -20,7 +20,8 @@ func CreateShortUrl(c *gin.Context) {
 		return
 	}
 	shortUrl := shortener.GenerateShortLink(creationRequest.LongUrl, creationRequest.UserId)
-	store.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)
+	// store.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)
+	mongodb.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)
 
 	host := "http://localhost:9808/"
 	c.JSON(200, gin.H{
@@ -31,6 +32,11 @@ func CreateShortUrl(c *gin.Context) {
 
 func HandleShortUrlRedirect(c *gin.Context) {
 	shortUrl := c.Param("shortUrl")
-	initialUrl := store.RetrieveInitialUrl(shortUrl)
-	c.Redirect(302, initialUrl)
+	// initialUrl := store.RetrieveInitialUrl(shortUrl)
+	initialUrl, err := mongodb.RetrieveInitialUrl(shortUrl)
+	if err != nil {
+		c.Redirect(404, "www.example.com")
+	} else {
+		c.Redirect(302, initialUrl)
+	}
 }
