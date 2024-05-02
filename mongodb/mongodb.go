@@ -3,8 +3,10 @@ package mongodb
 import (
 	"context"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -32,13 +34,23 @@ func InitializeMongo(dburi, dbname string) (*MongoClientWrapper, error) {
 }
 
 func SaveUrlMapping(shortUrl, longUrl, userId string) {
+	start := time.Now()
 	collection := mongoWrapper.mongoClient.Database(dbName).Collection("urls")
-	res, err := collection.InsertOne(ctx, bson.M{"shortUrl": shortUrl, "longUrl": longUrl, "usreId": userId})
+	// check if the short url already exist in the Database
+	var searchResult bson.M
+	err := collection.FindOne(ctx, bson.D{{"shortUrl", shortUrl}}).Decode(&searchResult)
+	if err == nil {
+		return
+	}
+	objectId := primitive.NewObjectID().Hex()
+	res, err := collection.InsertOne(ctx, bson.M{"_id": objectId, "shortUrl": shortUrl, "longUrl": longUrl, "usreId": userId})
 	if err != nil {
 		log.Panic("Failed to save the url in db | shortUrl = ", shortUrl)
 	} else {
-		log.Printf("Short Url saved successfully in db | shortUrl = %v - Inserted Id = %v", shortUrl, res.InsertedID)
+		log.Printf("Short Url saved successfully in db | shortUrl = %v - Inserted Id = %v\n", shortUrl, res.InsertedID)
 	}
+	elapsed := time.Since(start)
+	log.Printf("Total time took = %v \n", elapsed)
 }
 
 func RetrieveInitialUrl(shortUrl string) (string, error) {
